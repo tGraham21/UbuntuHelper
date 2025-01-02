@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15.3) # 3.26 comes with Visual Studio 2022
+cmake_minimum_required(VERSION 3.15.3)
 include(FetchContent)
 project(UbuntuHelper)
 

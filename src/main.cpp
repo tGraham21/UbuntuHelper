@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "httplib/httplib.h"
 #include "nlohmann/json.hpp"
 
@@ -67,7 +68,7 @@ void PrintSha256(std::vector<nlohmann::json> const & versions, std::string const
                 std::cout << "No disk1.img for specified version: " << release << std::endl;
                 return;
             }
-            
+
             auto disk1 = items["disk1.img"];
             if(disk1.contains("sha256"))
                 std::cout << disk1["sha256"] << std::endl;

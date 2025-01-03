@@ -19,6 +19,64 @@ bool equalIgnoreCase(std::string const & a, std::string const & b)
     });
 }
 
+void PrintSupportedReleases(std::vector<nlohmann::json> const & versions)
+{
+    for (auto const & json : versions)
+    {
+        if(json["supported"])
+            std::cout << json["version"] << " (" << json["release_codename"] << ")" << std::endl;
+    }
+}
+
+void PrintCurrLTS(std::vector<nlohmann::json> const & versions)
+{
+    double max = 0;
+    std::string currLTS;
+    for(auto const & json : versions)
+    {
+        std::string title = json["release_title"];
+        if(equalIgnoreCase(title.substr(title.size() - 3), "LTS"))
+        {
+            std::string v = json["version"];
+            double curr = std::stod(v);
+            if(curr > max)
+            {
+                currLTS = v + " (";
+                currLTS += json["release_codename"];
+                currLTS += ")";
+                max = curr;
+            }
+        }
+    }
+    if(!currLTS.empty())
+        std::cout << "Current Ubuntu LTS: " << currLTS << std::endl;
+    else
+        std::cout << "No LTS found" << std::endl;
+}
+
+void PrintSha256(std::vector<nlohmann::json> const & versions, std::string const & release)
+{
+    for(auto const & json : versions)
+    {
+        if(json["version"] == release || equalIgnoreCase(json["release_codename"], release) || equalIgnoreCase(json["release"], release))
+        {   
+            auto v = json["versions"];
+            auto items = v.front()["items"];
+            if(!items.contains("disk1.img"))
+            {
+                std::cout << "No disk1.img for specified version: " << release << std::endl;
+                return;
+            }
+            
+            auto disk1 = items["disk1.img"];
+            if(disk1.contains("sha256"))
+                std::cout << disk1["sha256"] << std::endl;
+            else
+                std::cout << "No sha256 for specified version: " << release << std::endl;
+        }
+    }
+}
+
 int main(int argc, char * argv[]) 
 {
     if( argc < 2 )
@@ -53,68 +111,33 @@ int main(int argc, char * argv[])
         return 1;
     }
 
-    std::string arg = argv[1];
-    ///TODO(Trevor): Fix this to check 'supported'
-    if(equalIgnoreCase(arg, "list"))
+    try
     {
-        for (auto const & json : versions)
-            std::cout << json["version"] << " (" << json["release_codename"] << ")" << std::endl;
-    }
-    else if (equalIgnoreCase(arg, "lts"))
-    {
-        double max = 0;
-        std::string currLTS;
-        for(auto const & json : versions)
+        std::string arg = argv[1];
+
+        if(equalIgnoreCase(arg, "list"))
+            PrintSupportedReleases(versions);
+        else if (equalIgnoreCase(arg, "lts"))
+            PrintCurrLTS(versions);
+        else if (equalIgnoreCase(arg, "sha256"))
         {
-            std::string title = json["release_title"];
-            if(equalIgnoreCase(title.substr(title.size() - 3), "LTS"))
+            if(argc < 3)
             {
-                std::string v = json["version"];
-                double curr = std::stod(v);
-                std::cout << std::to_string(curr) << std::endl;
-                if(curr > max)
-                {
-                    currLTS = v + " (";
-                    currLTS += json["release_codename"];
-                    currLTS += ")";
-                    max = curr;
-                }
+                std::cout << "Please specifiy a release version" << std::endl;
+                return 1;
             }
+
+            PrintSha256(versions, argv[2]);
         }
-        if(!currLTS.empty())
-            std::cout << "Current Ubuntu LTS: " << currLTS << std::endl;
         else
-            std::cout << "No LTS found" << std::endl;
-    }
-    else if (equalIgnoreCase(arg, "sha256"))
-    {
-        if(argc < 3)
         {
-            std::cout << "Please specifiy a release version" << std::endl;
+            printHelp();
             return 1;
         }
-
-        std::string release = argv[2];
-        for(auto const & json : versions)
-        {
-            // look up by any alias instead?
-            if(json["version"] == release || equalIgnoreCase(json["release_codename"], release) || equalIgnoreCase(json["release"], release))
-            {
-                auto v = json["versions"];
-                ///TODO(Trevor): clean this up
-                auto disk1 = v.front()["items"]["disk1.img"];
-                if(disk1.contains("sha256"))
-                {
-                    std::cout << disk1["sha256"] << std::endl;
-                }
-                else
-                    std::cout << "No sha256 for specified version: " << release << std::endl;
-            }
-        }
     }
-    else
+    catch(std::exception const & e)
     {
-        printHelp();
+        std::cout << "Error: " << e.what() << std::endl;
     }
 
     return 0;
